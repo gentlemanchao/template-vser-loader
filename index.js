@@ -15,8 +15,6 @@ module.exports = function (source) {
     source = removeRemark(source);
     const ast = new Parse(source);
     let funcStr = ast.render();
-    console.log('---funcStr:')
-    console.log(funcStr);
     funcStr = funcStr.replace(/[\r\n]/g, '');
     return `module.exports = function(){${funcStr}}`;
 };

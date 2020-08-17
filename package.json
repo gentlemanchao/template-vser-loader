@@ -1,0 +1,24 @@
+{
+  "name": "template-vser-loader",
+  "version": "1.0.1",
+  "description": "template parse loader of vser html file",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gentlemanchao/template-vser-loader.git"
+  },
+  "keywords": [
+    "vser",
+    "html",
+    "loader"
+  ],
+  "author": "gentlemanchao",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gentlemanchao/template-vser-loader/issues"
+  },
+  "homepage": "https://github.com/gentlemanchao/template-vser-loader#readme"
+}
