@@ -1,7 +1,7 @@
 function makeMap(str, expectsLowerCase) {
-    var map = Object.create(null);
-    var list = str.split(',');
-    for (var i = 0; i < list.length; i++) {
+    let map = Object.create(null);
+    const list = str.split(',');
+    for (let i = 0; i < list.length; i++) {
         map[list[i]] = true;
     }
     return expectsLowerCase ?
@@ -56,7 +56,7 @@ const isPlainTextElement = makeMap('script,style,textarea', true)
 const isReservedTag = function (tag) {
     return isHTMLTag(tag) || isSVG(tag);
 };
-const sytaxAttrReg = /^(v-model|v-for|v-if|v-html|v-else-if|v-show|(v-bind)?:[^=]*|v-on:[^=]*|@[^=]*)$/; //语法
+const sytaxAttrReg = /^(v-model|v-for|v-if|v-html|v-else-if|v-else|v-show|(v-bind)?:[^=]*|v-on:[^=]*|@[^=]*)$/; //语法
 const attrTextReg = /^('([^']*)')|("([^"]*)")$/; //属性前后引号
 const textSytaxReg = /{{([\s\S]*?)}}/g; //文本语法
 const eventReg = /^@|^v-on/; //事件
@@ -64,7 +64,7 @@ const funcReg = /^([^(]*)\(([^)]*)\)/; //函数
 const bindReg = /^v-bind/;
 // 删除前后引号
 const deleteStartAndEnd = function (text) {
-    var ret = text.match(attrTextReg);
+    const ret = text.match(attrTextReg);
     if (ret) {
         return ret && (ret[2] || ret[4]);
     } else {
@@ -77,8 +77,8 @@ const deleteColon = function (str) {
 }
 //map转字符串
 const mapToString = function (map) {
-    var arr = [];
-    for (var key in map) {
+    let arr = [];
+    for (let key in map) {
         if (Object.prototype.toString.call(map[key]) == '[object Object]') {
             //对象递归
             arr.push(key + ':' + mapToString(map[key]));
@@ -91,52 +91,7 @@ const mapToString = function (map) {
     }
     return arr.length ? `{${arr.join(',')}}` : null;
 }
-
-/**
- * 处理引用的静态资源
- * @param {*} fileContent 
- * @param {*} exclude 
- */
-var replaceSrc = function (fileUrl) {
-
-    if (!fileUrl) return `"${fileUrl}"`; // 避免空src引起编译失败
-
-    if (/^(http(s?):)?\/\//.test(fileUrl)) return `"${fileUrl}"`; // 绝对路径的图片不处理
-
-    if (!/\.(jpg|jpeg|png|gif|svg|webp)/i.test(fileUrl)) return `"${fileUrl}"`; // 非静态图片不处理
-
-    if (/^\/static/.test(fileUrl)) return `"${fileUrl}"`; //static 开头的静态资源不处理
-
-    if (!(/^[\.\/]/).test(fileUrl)) {
-        fileUrl = `"./${fileUrl}"`;
-    }
-
-    return "require(" + JSON.stringify(fileUrl) + ")";
-}
-
-/**
- * 移除style内静态资源
- * @param {*} string 
- */
-var replaceStyleSrc = function (string) {
-    return string.replace(/url\(([\s\S]*?)\)/gi, function (str) {
-        const reg = /url\(['"]?([\s\S]*?)['"]?\)/i;
-        const result = reg.exec(str);
-        if (!result) return str;
-        let url = result[1];
-        if (!url) return str; // 避免空src引起编译失败
-        if (/^(http(s?):)?\/\//.test(url)) return str; // 绝对路径的图片不处理
-        if (!/\.(jpg|jpeg|png|gif|svg|webp)/i.test(url)) return str; // 非静态图片不处理
-        if (/^\/static/.test(url)) return str; //static 开头的静态资源不处理
-
-        if (!(/^[\.\/]/).test(url)) {
-            url = './' + url;
-        }
-        return "url(\" + require('" + url + "') + \")";
-    });
-}
-
-var ast = function () {
+const ast = function () {
     this.index = 0;
     this.docType = null;
     this.tree = null;
@@ -206,7 +161,7 @@ ast.prototype._addChild = function (node, child) {
     }
 }
 ast.prototype.addTag = function (string, index) {
-    var node = this.create(1);
+    let node = this.create(1);
     node.tag = string;
     node.start = index;
     this.addNode(node);
@@ -239,8 +194,11 @@ ast.prototype._nodeEnd = function (node, index) {
  */
 ast.prototype.addAttr = function (name, text, index) {
     name = name.replace(bindReg, '');
-    text = deleteStartAndEnd(text);
-    var str = name + '=' + text;
+    let str = name;
+    if (text !== null) {
+        text = deleteStartAndEnd(text);
+        str = name + '=' + text;
+    }
     if (sytaxAttrReg.test(name)) {
         //语法属性
         var option = {
@@ -249,12 +207,12 @@ ast.prototype.addAttr = function (name, text, index) {
             value: text,
             start: index,
             end: index + str.length
-        }
-        //事件函数
+            //事件函数
+        };
         if (eventReg.test(name) && funcReg.test(text)) {
             var ret = text.match(funcReg);
             if (ret) {
-                option.value = ret[1]
+                option.value = ret[1];
                 // 函数参数
                 option.params = ret[2].trim().split(',');
             }
@@ -278,7 +236,7 @@ ast.prototype.addText = function (string, index) {
         this.current.text = this.current.text + string;
         this.current.end = string.length + index;
     } else {
-        var node = this.create(3);
+        let node = this.create(3);
         node.start = index;
         node.end = string.length + index;
         node.text = string;
@@ -296,49 +254,93 @@ ast.prototype.addDoctype = function (string) {
  * 根据语法树创建渲染函数
  */
 ast.prototype.render = function () {
-    var _parseNode = function (node) {
-        var str = '';
+    /**
+     * 解析ast并生成渲染函数片段
+     * @param {*} node 当前节点
+     */
+    const _parseNode = function (node) {
+        let str = '';
         //普通html节点
         if (node.type === 1) {
-
             //children节点
-            var children = [];
-            node.children && node.children.forEach(function (child) {
-                children.push(_parseNode(child));
-            });
+            let children = [];
+            if (node.children && node.children.length) {
+                const nodeChildren = node.children || [];
+                while (nodeChildren.length) {
+                    children.push(_parseNode(nodeChildren[0]));
+                    nodeChildren.splice(0, 1);
+                }
+            }
+
             //静态属性
-            var attrs = {};
-            node.attrList.forEach(function (attr) {
-                //处理引入的静态资源路径
-                if (attr.name === 'src') {
-                    attrs[`"${attr.name}"`] = `${replaceSrc(attr.value)}`;
-                } else if (attr.name === 'style') {
-                    attrs[`"${attr.name}"`] = `"${replaceStyleSrc(attr.value)}"`;
-                } else {
+            let attrs = {};
+            if (node.attrList && node.attrList.length) {
+                const attrList = node.attrList;
+                for (let j = 0, lenj = attrList.length; j < lenj; j++) {
+                    const attr = attrList[j];
                     attrs[`"${attr.name}"`] = `"${attr.value}"`;
                 }
-            });
+            }
+
             //动态属性
-            var params = {};
-            node.syntaxList.forEach(function (syntax) {
-                const _n = deleteColon(syntax.name),
-                    _v = syntax.value;
-                if (_n !== 'v-if' && _n !== 'v-for') {
-                    if (eventReg.test(_n)) {
-                        params[`"${_n}"`] = {
-                            func: _v,
-                            params: syntax.params
+            let params = {};
+            if (node.syntaxList && node.syntaxList.length) {
+                const syntaxList = node.syntaxList;
+                for (let k = 0, lenk = syntaxList.length; k < lenk; k++) {
+                    const syntax = syntaxList[k];
+                    const _n = deleteColon(syntax.name),
+                        _v = syntax.value;
+                    if (_n !== 'v-if' && _n !== 'v-for') {
+                        if (eventReg.test(_n)) {
+                            params[`"${_n}"`] = {
+                                func: _v,
+                                params: syntax.params
+                            }
+                        } else {
+                            params[`"${_n}"`] = _v;
                         }
-                    } else {
-                        params[`"${_n}"`] = _v;
                     }
                 }
-            });
+            }
+
             //当前节点
             str = '_c("' + node.tag + '",' + mapToString(attrs) + ' ,' + mapToString(params) + ',' + '[' + children.join(',') + ']' + ',' + node.static + ')';
             //判断v-if语句
             if (node.attrMap['v-if']) {
-                str = '(' + node.attrMap['v-if'] + ') ? ' + str + ' : null';
+                const _parent = node.parent || null;
+                const _children = _parent && _parent.children || [];
+                let _arrIf = []; //连续的if 和else if
+                let _lastIf = null; //最后的else
+                _arrIf.push({
+                    condition: node.attrMap['v-if'],
+                    str: str
+                });
+                let ifCount = 0; //if条件计数
+                //循环处理 v-if后的 v-else-if 和 v-else节点
+                for (let _i = 1, _len = _children.length; _i < _len; _i++) {
+                    const _node = _children[_i];
+                    if (_node.attrMap['v-else-if']) {
+                        _arrIf.push({
+                            condition: _node.attrMap['v-else-if'],
+                            str: _parseNode(_node)
+                        });
+                        ifCount++;
+                    } else if (typeof _node.attrMap['v-else'] !== 'undefined') {
+                        _lastIf = _parseNode(_node);
+                        ifCount++;
+                    } else {
+                        break;
+                    }
+                }
+
+                let ifStr = _lastIf; //if条件块字符串
+                for (let _lenj = _arrIf.length, _j = _lenj - 1; _j >= 0; _j--) {
+                    const _ifNode = _arrIf[_j];
+                    ifStr = '(' + _ifNode.condition + ') ? ' + _ifNode.str + ': (' + ifStr + ')';
+
+                }
+                _children.splice(0, ifCount);
+                str = ifStr;
             }
             //判断v-for语句
             if (node.attrMap['v-for']) {
@@ -349,15 +351,23 @@ ast.prototype.render = function () {
             }
         } else if (node.type === 3) {
             //文本节点
-            const ret = node.text.replace(textSytaxReg, function (str, sytax) {
+            let text = node.text;
+            //转义单双引号,但是不转义模板语法内的单双引号
+            text = text.replace(/'/g, "--escaped-SingleQuotationByVser--")
+            text = text.replace(/"/g, "--escaped-DoubleQuotationByVser--")
+            let ret = text.replace(textSytaxReg, function (str, sytax) {
+                sytax = sytax.replace(/--escaped-SingleQuotationByVser--/g, "'");
+                sytax = sytax.replace(/--escaped-DoubleQuotationByVser--/g, '"');
                 return `" + (${sytax}) + "`;
             });
+            ret = ret.replace(/--escaped-SingleQuotationByVser--/g, "\\'");
+            ret = ret.replace(/--escaped-DoubleQuotationByVser--/g, '\\"');
             str = `_t("${ret.replace(/\n/g,'')}")`;
         }
         return str;
 
     }
-    var string = _parseNode(this.tree);
+    const string = _parseNode(this.tree);
     return `with(this){return ${string}}`;
 }
 module.exports = ast;
