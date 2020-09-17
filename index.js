@@ -4,7 +4,7 @@ const Parse = require('./src/parse');
  * 移除注释
  * @param {*} content 
  */
-var removeRemark = function (content) {
+function removeRemark(content) {
     const reg = /<!--[\s\S]*?-->/g
     return content.replace(reg, '');
 }
